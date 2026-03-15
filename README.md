@@ -1,78 +1,105 @@
-# CodeGamified
+# MIDI — The Music Coding Game
 
-Open-source boilerplate for building **educational coding video games** in Unity.
+A game where you **write code to compose music**. Type Sonic Pi–flavored Python into a terminal UI, hit run, and hear your composition play back in real time with procedural audio synthesis.
 
-Players write real code (Python subset) to control in-game systems — satellites, ships, robots, whatever your game needs. The engine compiles it to bytecode, executes it in a sandboxed VM, and renders feedback through retro terminal UIs. You supply the game; we supply the programming loop.
-
-## What You Get
-
-| Module | What It Does |
-|---|---|
-| **[.engine/CodeGamified.Engine](.engine/CodeGamified.Engine)** | Python subset → AST → RISC-like bytecode → time-scale-aware executor. 27 core opcodes + 32 game-customizable I/O opcodes. |
-| **[.engine/CodeGamified.TUI](.engine/CodeGamified.TUI)** | Row-based monospace terminal UI → TextMeshPro rich-text. Scramble animations, progress bars, gradient colorization, resizable panels, slider/button overlays. |
-| **[.engine/CodeGamified.Time](.engine/CodeGamified.Time)** | Simulation clock with pause/scale presets, time warp state machine (accelerate → cruise → decelerate → arrive), day/night hooks. |
+Part of the [CodeGamified](https://github.com/CodeGamified) ecosystem.
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  YOUR GAME (BitNaughts, SeaRauber, Pong, yours next)    │
-│                                                         │
-│  ICompilerExtension ─── game builtins, known types      │
-│  IGameIOHandler ─────── sensor reads, signals, orders   │
-│  TerminalWindow ─────── ship log, nav chart, debugger   │
-│  SimulationTime ─────── day length, max warp speed      │
-├─────────────────────────────────────────────────────────┤
-│  .engine/ (git submodules — shared across all games)    │
-│                                                         │
-│  CodeGamified.Engine    compiler + VM + bytecode        │
-│  CodeGamified.TUI       terminal rendering + animation  │
-│  CodeGamified.Time      simulation clock + time warp    │
-└─────────────────────────────────────────────────────────┘
+Players write short programs using a simplified Python syntax. The code compiles to custom opcodes and executes on a virtual machine that drives a polyphonic synthesizer. A live piano-roll monitor visualizes notes as they play.
+
+```python
+set_bpm(140)
+use_synth("square")
+
+while True:
+    play(60)
+    sleep(0.5)
+    play(64)
+    sleep(0.5)
+    play(67)
+    sleep(1)
 ```
 
-Players write Python in a terminal. The engine compiles and runs it. The TUI shows the output. Time controls let players fast-forward simulations. Every game gets the same core loop — different theme, different builtins, same learning outcomes.
+### Available Functions
 
-## Quick Start
+| Function | Description | Tier |
+|---|---|---|
+| `play(note)` | Play a MIDI note (0–127) | 1 |
+| `sleep(beats)` | Wait for a number of beats | 1 |
+| `set_bpm(n)` | Set tempo (beats per minute) | 2 |
+| `set_volume(v)` | Set master volume (0.0–1.0) | 2 |
+| `sample(name)` | Trigger a named sample | 3 |
+| `stop()` | Stop all notes | 3 |
+| `use_synth(name)` | Switch synthesizer waveform | 5 |
+| `use_fx(name, mix)` | Apply an audio effect | 5 |
+
+### Synthesizers
+
+`sine` · `square` · `saw` · `triangle` · `piano` · `pluck` · `bass` · `pad`
+
+## Tier Progression
+
+New language features unlock as the player advances:
+
+| Tier | Unlocks |
+|---|---|
+| 1 | `play()`, `sleep()` |
+| 2 | `while True` loops, `set_bpm()`, `set_volume()` |
+| 3 | `for` loops, variables, `sample()` |
+| 4 | `if`/conditionals, `use_synth()` |
+| 5 | `use_fx()`, expressions |
+
+## Architecture
+
+```
+MidiGameBootstrap
+├─ MidiCanvas
+│  ├─ EditorPanel     — code editor (TUI)
+│  ├─ MonitorPanel    — live piano-roll visualizer
+│  ├─ DebuggerPanel   — step-through debugger
+│  └─ StatusBarPanel  — BPM / volume / synth info
+├─ MidiExecutor       — program runtime (MidiProgramBehaviour)
+├─ SimulationTime     — beat-synced clock
+└─ Persistence        — git-backed composition storage
+```
+
+The shared [.engine](https://github.com/CodeGamified/.engine) submodule provides the TUI framework, code editor, compiler, virtual machine, and persistence layer — the same foundation used by Pong, SeaRäuber, and BitNaughts.
+
+### Key Source Files
+
+| File | Purpose |
+|---|---|
+| `MidiGameBootstrap.cs` | Scene setup and wiring |
+| `MidiCompilerExtension.cs` | Compiles music functions to opcodes |
+| `MidiIOHandler.cs` | Executes opcodes at runtime |
+| `MidiOpCode.cs` | Custom opcode definitions |
+| `MidiProgramBehaviour.cs` | MonoBehaviour bridge to the VM |
+| `MidiAudioProvider.cs` | Procedural waveform synthesis |
+| `MidiMonitorWindow.cs` | Piano-roll TUI visualizer |
+| `MidiEditorExtension.cs` | Editor autocomplete and option tree |
+
+## Requirements
+
+- **Unity 6** (6000.0.36f1)
+- Universal Render Pipeline (URP)
+- Input System package
+
+## Getting Started
 
 ```bash
-# Fork this repo, then in your Unity project:
-git submodule add https://github.com/CodeGamified/.engine.git Assets/.engine
-
-# Implement 3 interfaces:
-# 1. ICompilerExtension  → register your game's builtins (e.g. radio.send())
-# 2. IGameIOHandler      → execute your custom opcodes at runtime
-# 3. TerminalWindow      → define your terminal panels (Render() override)
-#
-# Ship it.
+git clone --recurse-submodules https://github.com/CodeGamified/codegamified.github.io.git
 ```
 
-## Repo Structure
+Open the `midi/Midi` folder in Unity. The main scenes are in `Assets/Scenes/`.
 
-```
-codegamified.github.io/          ← you are here (org landing page + submodule refs)
-├── .engine/                     ← shared engine submodule
-│   ├── CodeGamified.Engine/       compiler, VM, bytecode executor
-│   ├── CodeGamified.TUI/          terminal UI framework
-│   └── CodeGamified.Time/         simulation time + time warp
-├── .github/                     ← org profile + agent instructions
-└── pong/                        ← example game (submodule)
-```
+### Persistence
 
-## Games Using This
+Composition persistence saves player scripts to a `.data/` directory. Configure in the bootstrap inspector:
 
-| Game | Theme | Players Code To... |
-|---|---|---|
-| **BitNaughts** | GPU satellite tycoon | Program satellite sensors, transmissions, orbital maneuvers |
-| **SeaRauber** | Pirate adventure | Automate crew orders, navigation, ship systems |
-| **Pong** | Classic arcade | Control paddles via code |
-
-## Why
-
-Most "learn to code" products are glorified tutorials. Games teach better because **the feedback loop is intrinsic** — your code either steers the ship or it doesn't. No grades, no hints, no hand-holding. Just a terminal and a problem.
-
-This boilerplate handles the hard parts (compilation, execution, sandboxing, time simulation, terminal rendering) so game developers can focus on the fun parts (world, narrative, game mechanics).
+- **enablePersistence** — toggle save/load
+- **useLocalGitProvider** — use a local git repo instead of in-memory (survives restarts)
 
 ## License
 
-See individual module READMEs for details.
+MIT — Copyright CodeGamified 2025-2026
